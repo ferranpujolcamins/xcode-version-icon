@@ -7,10 +7,13 @@ struct XcodeVersionIcon: ParsableCommand {
     private var xcodePath: String
 
     @Option(help: "The name of the font to use to render the version number.")
-    private var font = ""
+    private var font = NSFont.systemFont(ofSize: 10).fontName
 
     @Option(help: "The font size to use to render the version number.")
-    private var fontSize = ""
+    private var fontSize: CGFloat = 20
+
+    @Flag(help: "Open the icon after modification.")
+    private var open: Bool = false
 
     private lazy var iconPath = "\(xcodePath)/Contents/Resources/Xcode.icns"
 
@@ -19,9 +22,18 @@ struct XcodeVersionIcon: ParsableCommand {
     mutating func run() throws {
         convertIcnsToIconset(inPath: iconPath, outPath: tempIconSetPath)
 
-        try addVersionTag(toIconSetAt: tempIconSetPath)
+        guard let nsFont = NSFont(name: font, size: fontSize) else {
+            print("Cannot load a font named '\(font)' ")
+            throw ExitCode.failure
+        }
+
+        try addVersionTag(toIconSetAt: tempIconSetPath, font: nsFont)
 
         convertIconsetToIcns(inPath: tempIconSetPath, outPath: iconPath)
+
+        if open {
+            openCommand(path: iconPath)
+        }
     }
 }
 
@@ -45,38 +57,45 @@ func iconutil(inPath: String, outPath: String, options: [String]) {
     task.waitUntilExit()
 }
 
-func addVersionTag(toIconSetAt iconSetPath: String) throws {
+func openCommand(path: String) {
+    let task = Process()
+    task.launchPath = "/usr/bin/open"
+    task.arguments = [path]
+    task.launch()
+    task.waitUntilExit()
+}
+
+func addVersionTag(toIconSetAt iconSetPath: String, font: NSFont) throws {
     let files = try FileManager.default.contentsOfDirectory(atPath: iconSetPath)
     for filePath in files {
-        try addVersionTag(toIconAt: "\(iconSetPath)/\(filePath)")
+        try addVersionTag(toIconAt: "\(iconSetPath)/\(filePath)", font: font)
     }
 }
 
-func addVersionTag(toIconAt iconPath: String) throws {
+func addVersionTag(toIconAt iconPath: String, font: NSFont) throws {
     guard let icon = NSImage(contentsOfFile: iconPath) else { return }
-    let modifiedImage = icon.addTextToImage("12.2")
+    let modifiedImage = icon.addTextToImage("12.2", font: font)
     try modifiedImage.write(to: iconPath)
 }
 
 extension NSImage {
 
-    func addTextToImage(_ text: String) -> NSImage {
+    func addTextToImage(_ text: String, font: NSFont) -> NSImage {
         let textOrigin = CGPoint(x: self.size.height/3, y: -self.size.width/4)
-        return addTextToImage(text, at: textOrigin)
+        return addTextToImage(text, at: textOrigin, font: font)
     }
 
-    func addTextToImage(_ text: String, at textOrigin: CGPoint) -> NSImage {
+    func addTextToImage(_ text: String, at textOrigin: CGPoint, font: NSFont) -> NSImage {
 
         let targetImage = NSImage(size: self.size, flipped: false) { (dstRect: CGRect) -> Bool in
 
             self.draw(in: dstRect)
             let textColor = NSColor.white
-            let textFont = NSFont(name: "Snell Roundhand", size: 36)! //Helvetica Bold
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.alignment = NSTextAlignment.center
 
             let textFontAttributes: [NSAttributedString.Key : Any] = [
-                NSAttributedString.Key.font: textFont,
+                NSAttributedString.Key.font: font,
                 NSAttributedString.Key.foregroundColor: textColor
             ]
 
@@ -96,5 +115,12 @@ extension NSImage {
                 return
         }
         try fileData.write(to: URL(fileURLWithPath: file))
+    }
+}
+
+extension CGFloat: ExpressibleByArgument {
+    public init?(argument: String) {
+        guard let float = Float(argument: argument) else { return nil }
+        self.init(float)
     }
 }
