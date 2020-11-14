@@ -1,6 +1,7 @@
 import AppKit
 import ArgumentParser
 
+// TODO: add flag to also rename app with version
 struct XcodeVersionIcon: ParsableCommand {
 
     @Argument(help: "Path to the Xcode app bundle to modify.")
@@ -10,10 +11,12 @@ struct XcodeVersionIcon: ParsableCommand {
     private var font = NSFont.systemFont(ofSize: 10).fontName
 
     @Option(help: "The font size to use to render the version number.")
-    private var fontSize: CGFloat = 20
+    private var fontSize: CGFloat = 22
 
     @Flag(help: "Open the icon after modification.")
     private var open: Bool = false
+
+    private lazy var plistPath = "\(xcodePath)/Contents/version.plist"
 
     private lazy var iconPath = "\(xcodePath)/Contents/Resources/Xcode.icns"
 
@@ -27,7 +30,10 @@ struct XcodeVersionIcon: ParsableCommand {
             throw ExitCode.failure
         }
 
-        try addVersionTag(toIconSetAt: tempIconSetPath, font: nsFont)
+        let version = try xcodeVersion(pListPath: plistPath)
+        print("Xcode \(version)")
+
+        try addVersionTag(for: version, toIconSetAt: tempIconSetPath, font: nsFont)
 
         convertIconsetToIcns(inPath: tempIconSetPath, outPath: iconPath)
 
@@ -65,23 +71,39 @@ func openCommand(path: String) {
     task.waitUntilExit()
 }
 
-func addVersionTag(toIconSetAt iconSetPath: String, font: NSFont) throws {
+func xcodeVersion(pListPath: String) throws -> String {
+    let pList = try readPlist(at: pListPath)
+    guard let version = pList["CFBundleShortVersionString"] as? String else {
+        throw ExitCode.failure
+    }
+    return version
+}
+
+func readPlist(at path: String) throws -> [String: Any] {
+    var propertyListFormat =  PropertyListSerialization.PropertyListFormat.xml
+    guard let plistXML = FileManager.default.contents(atPath: path) else {
+        throw ExitCode.failure
+    }
+    return try PropertyListSerialization.propertyList(from: plistXML, options: .mutableContainersAndLeaves, format: &propertyListFormat) as! [String: Any]
+}
+
+func addVersionTag(for version: String, toIconSetAt iconSetPath: String, font: NSFont) throws {
     let files = try FileManager.default.contentsOfDirectory(atPath: iconSetPath)
     for filePath in files {
-        try addVersionTag(toIconAt: "\(iconSetPath)/\(filePath)", font: font)
+        try addVersionTag(for: version, toIconAt: "\(iconSetPath)/\(filePath)", font: font)
     }
 }
 
-func addVersionTag(toIconAt iconPath: String, font: NSFont) throws {
+func addVersionTag(for version: String, toIconAt iconPath: String, font: NSFont) throws {
     guard let icon = NSImage(contentsOfFile: iconPath) else { return }
-    let modifiedImage = icon.addTextToImage("12.2", font: font)
+    let modifiedImage = icon.addTextToImage(version, font: font)
     try modifiedImage.write(to: iconPath)
 }
 
 extension NSImage {
 
     func addTextToImage(_ text: String, font: NSFont) -> NSImage {
-        let textOrigin = CGPoint(x: self.size.height/3, y: -self.size.width/4)
+        let textOrigin = CGPoint(x: self.size.height/5, y: -self.size.width/6)
         return addTextToImage(text, at: textOrigin, font: font)
     }
 
@@ -90,13 +112,12 @@ extension NSImage {
         let targetImage = NSImage(size: self.size, flipped: false) { (dstRect: CGRect) -> Bool in
 
             self.draw(in: dstRect)
-            let textColor = NSColor.white
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.alignment = NSTextAlignment.center
 
             let textFontAttributes: [NSAttributedString.Key : Any] = [
                 NSAttributedString.Key.font: font,
-                NSAttributedString.Key.foregroundColor: textColor
+                NSAttributedString.Key.foregroundColor: NSColor.white,
             ]
 
             let rect = CGRect(origin: textOrigin, size: self.size)
