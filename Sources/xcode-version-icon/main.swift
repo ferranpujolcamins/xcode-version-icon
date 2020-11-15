@@ -15,9 +15,15 @@ struct XcodeVersionIcon: ParsableCommand {
     )
 }
 
-struct AddIconVersionLabel: ParsableCommand {
+struct CommonArguments: ParsableArguments {
     @Argument(help: "Path to the Xcode app bundle to modify.")
-    private var xcodePath: String
+    var xcodePath: String
+}
+
+struct AddIconVersionLabel: ParsableCommand {
+
+    @OptionGroup
+    private var commonArguments: CommonArguments
 
     @Option(help: "The name of the font to use to render the version number.")
     private var font = NSFont.systemFont(ofSize: 10).fontName
@@ -28,9 +34,9 @@ struct AddIconVersionLabel: ParsableCommand {
     @Flag(help: "Open the icon after modification.")
     private var open: Bool = false
 
-    private lazy var plistPath = "\(xcodePath)/Contents/version.plist"
+    private lazy var plistPath = "\(commonArguments.xcodePath)/Contents/version.plist"
 
-    private lazy var iconPath = "\(xcodePath)/Contents/Resources/Xcode.icns"
+    private lazy var iconPath = "\(commonArguments.xcodePath)/Contents/Resources/Xcode.icns"
 
     private lazy var tempIconSetPath = FileManager.default.temporaryDirectory.path + NSUUID().uuidString + ".iconset"
 
