@@ -8,7 +8,7 @@ XcodeVersionIcon.main()
 // TODO: Rename to something more generic, this works for any app
 // TODO: ability to print app version
 struct XcodeVersionIcon: ParsableCommand {
-
+    static let backupExtension = ".original"
     static let configuration = CommandConfiguration(
         subcommands: [AddIconVersionLabel.self],
         defaultSubcommand: AddIconVersionLabel.self

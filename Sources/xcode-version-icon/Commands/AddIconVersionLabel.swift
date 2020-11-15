@@ -15,6 +15,9 @@ struct AddIconVersionLabel: ParsableCommand {
     @Flag(help: "Open the icon after modification.")
     private var open: Bool = false
 
+    @Flag(help: "Keep a backup of the original icon.")
+    private var backup: Bool = false
+
     private lazy var plistPath = "\(commonArguments.xcodePath)/Contents/version.plist"
 
     private lazy var iconPath = "\(commonArguments.xcodePath)/Contents/Resources/Xcode.icns"
@@ -22,6 +25,10 @@ struct AddIconVersionLabel: ParsableCommand {
     private lazy var tempIconSetPath = FileManager.default.temporaryDirectory.path + NSUUID().uuidString + ".iconset"
 
     mutating func run() throws {
+        if backup {
+            try FileManager.default.copyItem(atPath: iconPath, toPath: iconPath + XcodeVersionIcon.backupExtension)
+        }
+
         convertIcnsToIconset(inPath: iconPath, outPath: tempIconSetPath)
 
         guard let nsFont = NSFont(name: font, size: fontSize) else {
