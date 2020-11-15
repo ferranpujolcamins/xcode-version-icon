@@ -20,12 +20,13 @@ struct AddIconVersionLabel: ParsableCommand {
 
     private lazy var plistPath = "\(commonArguments.xcodePath)/Contents/version.plist"
 
-    private lazy var iconPath = "\(commonArguments.xcodePath)/Contents/Resources/Xcode.icns"
-
     private lazy var tempIconSetPath = FileManager.default.temporaryDirectory.path + NSUUID().uuidString + ".iconset"
 
     mutating func run() throws {
+        let iconPath = commonArguments.iconPath
+
         if backup {
+            // TODO: this fails if there's already a backup
             try FileManager.default.copyItem(atPath: iconPath, toPath: iconPath + XcodeVersionIcon.backupExtension)
         }
 

@@ -10,7 +10,10 @@ XcodeVersionIcon.main()
 struct XcodeVersionIcon: ParsableCommand {
     static let backupExtension = ".original"
     static let configuration = CommandConfiguration(
-        subcommands: [AddIconVersionLabel.self],
+        subcommands: [
+            AddIconVersionLabel.self,
+            RestoreIcon.self
+        ],
         defaultSubcommand: AddIconVersionLabel.self
     )
 }
@@ -18,4 +21,6 @@ struct XcodeVersionIcon: ParsableCommand {
 struct CommonArguments: ParsableArguments {
     @Argument(help: "Path to the Xcode app bundle to modify.")
     var xcodePath: String
+
+    var iconPath: String { "\(xcodePath)/Contents/Resources/Xcode.icns" }
 }
